@@ -108,7 +108,12 @@ var factory = function () {
             if (!sent) {
                 return void rej({type: 'DISCONNECTED', message: JSON.stringify(message)});
             }
-            ctx.requests[seq] = { reject: rej, resolve: res, time: now() };
+            ctx.requests[seq] = {
+                channel: chan,
+                reject: rej,
+                resolve: res,
+                time: now()
+            };
         });
     };
 
@@ -242,7 +247,6 @@ var factory = function () {
     // asynchrnously using a setTimeout. With this code, the PING interval check can be executed
     // between two messages.
     var process = function (ctx) {
-        //if (!Array.isArray(handlers)) { return; }
         if (ctx.queues.busy) { return; }
         var next = function () {
             var obj =   ctx.queues.p1.shift() ||
@@ -255,21 +259,20 @@ var factory = function () {
             ctx.queues.busy = true;
             var handlers = obj.h;
             var msg = obj.msg;
-            handlers.forEach(function (h) {
-                setTimeout(function () {
-                    try {
-                        h(msg[4], msg[1]);
-                    } catch (e) {
-                        console.error(e);
-                    }
-                });
-            });
-            //console.error(ctx.queues.p1.length, ctx.queues.p2.length, ctx.queues.p3.length);
-            setTimeout(function () {
-                next();
-            });
+            Promise.resolve().then(() => {
+                if (obj.resolve) {
+                    obj.resolve();
+                } else {
+                    handlers.forEach(function (h) {
+                        try {
+                            h(msg[4], msg[1]);
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    });
+                }
+            }).then(next);
         };
-        //next(handlers.queue.shift());
         next();
     };
 
@@ -294,6 +297,17 @@ var factory = function () {
                     ctx.lastObservedLag = now() - Number(req.ping);
                     ctx.timeOfLastPingReceived = now();
                     ctx.pingOutstanding--;
+                    return;
+                }
+                if (req.channel) {
+                    const chan = req.channel;
+                    let q = ctx.queues.p2;
+                    if (chan._.queue) { q = chan._.queue; }
+                    q.push({
+                        msg: msg,
+                        resolve: req.resolve
+                    });
+                    process(ctx);
                     return;
                 }
                 req.resolve();
