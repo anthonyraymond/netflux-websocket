@@ -24,8 +24,9 @@ var factory = function () {
     // How much lag before we send a ping
     var MAX_LAG_BEFORE_PING = 15000;
 
-    // How much of a lag we accept before we will drop the socket
-    var MAX_LAG_BEFORE_DISCONNECT = 60000;
+    // How much of a lag we accept before we will drop the socket.
+    //  This value must be strictly greater than 60s, because Chrome will throttle inactive tabs to 1 request per 60000 seconds. To ensure a round of PING timeout is guaranteed to take place we had 2*MAX_LAG_BEFORE_PING
+    var MAX_LAG_BEFORE_DISCONNECT = 60000 + MAX_LAG_BEFORE_PING * 2;
 
     // How often to ping the server
     var PING_CYCLE = 5000;
