@@ -25,7 +25,12 @@ var factory = function () {
     var MAX_LAG_BEFORE_PING = 15000;
 
     // How much of a lag we accept before we will drop the socket.
-    //  This value must be strictly greater than 60s, because Chrome will throttle inactive tabs to 1 request per 60000 seconds. To ensure a round of PING timeout is guaranteed to take place we had 2*MAX_LAG_BEFORE_PING
+    // The connection is kept alive as long as we receive at least one message in this time interval. When we are alone
+    // the only messages we receive are the replies to our pings. The ping messages are sent at regular intervals, see
+    // PING_CYCLE. Browsers are throttling the timers used by inactive tabs to one execution per 60 seconds. This means
+    // that ping messages are sent only once per 60 seconds for inactive tabs. Moreover, we need to leave some time for
+    // the pong reply to reach us, before we close the WebSocket connection. Limiting the ping-pong round-trip to
+    // 2xMAX_LAG_BEFORE_PING looks like a safe choice.
     var MAX_LAG_BEFORE_DISCONNECT = 60000 + MAX_LAG_BEFORE_PING * 2;
 
     // How often to ping the server
